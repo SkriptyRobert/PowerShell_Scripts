@@ -1,0 +1,28 @@
+##########VARIABLES###########
+   
+    $targetcomputer="Pcname"
+    $user = "User_DomainUser"
+    $password = Get-Content "C:\test\password.txt" | ConvertTo-SecureString -AsPlainText -Force
+    $mycreds = New-Object System.Management.Automation.PSCredential ($user, $password)
+
+##########INFO#############
+
+Write-Host "Probehne pripojeni k ..... $targetcomputer"
+
+#########CONNECT##########
+
+Enter-PSSession -Computer $targetComputer -Credential $mycreds
+
+#########Connection TEST##########
+
+$testSession = New-PSSession -Computer $targetComputer -Credential $mycreds
+
+if(-not($testSession))
+{
+    Write-Warning "$targetComputer Aplikacni server nedostupny, nepripojeno!!!" 
+}
+else
+{
+    Write-Host "Pripojeni k serveru $targetComputer bylo uspesne!" -ForegroundColor Black -BackgroundColor Green
+ 
+}
