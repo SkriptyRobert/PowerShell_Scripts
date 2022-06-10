@@ -1,0 +1,84 @@
+##########VARIABLES###########
+   
+    $targetcomputer="TSTZZ"
+    $user = "IBCMSK\rpesout"
+    $password = Get-Content "C:\test\password.txt" | ConvertTo-SecureString -AsPlainText -Force
+    $mycreds = New-Object System.Management.Automation.PSCredential ($user, $password)
+
+#############START SCRIPT HERE###########
+#############SERVICE STATEMENT##############
+do {
+
+write-host "##########################"
+Write-Host ">>>Aktualni stav sluzeb<<<"
+write-host "##########################"
+
+gsv -ComputerName $targetcomputer M5Zzs* | Select Name,Status | ForEach-Object {   
+if($_.Status -eq "running")
+{
+Write-Host Sluzba $_.Name $_.Status -ForegroundColor Black -BackgroundColor Green
+}
+else
+{
+Write-Host Sluzba $_.Name $_.status -ForegroundColor Black -BackgroundColor Red
+} 
+}
+
+write-host "#######################"
+
+############QUESTION, WHAT TO DO NEXT##############
+
+write-host "===================================================================================================================================="
+$value=Read-Host "Zadej VOLBU ::: ZASTAVIT sluzbu= -1-, SPUSTIT sluzbu= -2-, RESTARTOVAT sluzbu= -3-, Poskodit= -4-, Opravit= -5-, Konec= -0-"  
+write-host "===================================================================================================================================="
+
+if ( $value -eq 1 )
+{
+    $stop="SERVICE"
+    gsv -ComputerName $targetcomputer -Name $stop | Stop-Service -Force -Verbose
+    gsv -ComputerName $targetcomputer -name $stop ## SERVICE STOPCHECK
+}
+elseif ( $value -eq 2 )
+{
+    $start="SERVICE"
+    Get-Service -ComputerName $targetcomputer -Name $start | Start-Service -Verbose
+    gsv -ComputerName $targetcomputer -name $start ## SERVICE STARTUPCHECK  
+}
+elseif ( $value -eq 3 )
+{
+    $restart="SERVICE"
+    Get-Service -ComputerName $targetcomputer -Name $restart | Restart-Service -Verbose 
+    gsv -ComputerName $targetcomputer -name $restart 
+}
+ 
+    #################CONNECT TO REMOTE DISK AND OWERWRITE STRING IN FILE################
+elseif ( $value -eq 4 )
+{
+
+  
+    $session = new-pssession -computername $targetcomputer -credential $mycreds
+    $a = invoke-command -session $session -scriptblock { ((get-content "C:\IZS\M5ZzsBridgeZD\m5zzsbridgezd.exe") -replace "https://services.zzsmsk.cz/DocSrvTst/DispDataPort/DispDataPort.asmx","https://services.zzsmsk.cz/DocSrvTst/DispDataPort/DispDataPortaaa.asmx" | Set-Content -Path "C:\IZS\M5ZzsBridgeZD\m5zzsbridgezd.exe") }
+    Get-Service -ComputerName $targetcomputer -Name $restart | Restart-Service -Verbose 
+    gsv -ComputerName $targetcomputer -name $restart 
+    
+    #################REPAIR STRING BACK###################
+}
+elseif ( $value -eq 5 )
+{
+   
+    $session = new-pssession -computername $targetcomputer -credential $mycreds
+    $a = invoke-command -session $session -scriptblock { ((get-content "C:\IZS\M5ZzsBridgeZD\m5zzsbridgezd.exe") -replace "https://services.zzsmsk.cz/DocSrvTst/DispDataPort/DispDataPortaaa.asmx","https://services.zzsmsk.cz/DocSrvTst/DispDataPort/DispDataPort.asmx" | Set-Content -Path "C:\IZS\M5ZzsBridgeZD\m5zzsbridgezd.exe") } 
+    Get-Service -ComputerName $targetcomputer -Name $restart | Restart-Service -Verbose 
+    gsv -ComputerName $targetcomputer -name $restart 
+
+}
+} until ( $value -eq 0 )
+
+#############Na konci prepsat i puvodni hodnoty, aby se nestalo, ze zustane prerusen kontakt s databazi. Treba i tak ze na konci nahraje kopie zaloha configu a prejmenuje se.#######
+
+    $session = new-pssession -computername $targetcomputer -credential $mycreds
+    invoke-command -session $session -scriptblock { ((get-content "C:\IZS\M5ZzsBridgeZD\m5zzsbridgezd.exe") -replace "https://services.zzsmsk.cz/DocSrvTst/DispDataPort/DispDataPortaaa.asmx","https://services.zzsmsk.cz/DocSrvTst/DispDataPort/DispDataPort.asmx" | Set-Content -Path "C:\IZS\M5ZzsBridgeZD\m5zzsbridgezd.exe") } 
+    Get-Service -ComputerName $targetcomputer -Name $restart | Restart-Service -Verbose 
+    gsv -ComputerName $targetcomputer -name $restart 
+
+Write-host "Program ukoncen, stav byl navracen do puvodnich hodnot!" -ForegroundColor Black -BackgroundColor Yellow
