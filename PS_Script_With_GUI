@@ -1,0 +1,105 @@
+Add-Type -AssemblyName PresentationFramework
+
+##########################
+#Variables Declaration
+##########################
+    
+    $targetcomputer="TSTZZS02"
+    $user = "IBCMSK\rpesout"
+    $password = Get-Content "C:\test\password.txt" | ConvertTo-SecureString -AsPlainText -Force
+    $mycreds = New-Object System.Management.Automation.PSCredential ($user, $password)
+
+##########################
+#XAML Content 
+##########################
+
+$xamlFile="C:\Users\rober\source\repos\WpfApp3\MainWindow.xaml"
+$inputXAML=Get-Content -Path $xamlFile -Raw
+$inputXAML=$inputXAML -replace 'mc:Ignorable="d"','' -replace "x:N","N" -replace '^<Win.*','<Window'
+[XML]$XAML=$inputXAML
+
+$reader = New-Object System.Xml.XmlNodeReader $XAML
+try{
+    $form1=[Windows.Markup.XamlReader]::Load($reader)
+}catch{
+    Write-Host $_.Exception
+    throw
+}
+
+###########################
+#Variables set
+###########################
+
+$xaml.SelectNodes("//*[@Name]") | ForEach-Object {
+    try{
+        Set-Variable -Name "var_$($_.Name)" -Value $form1.FindName($_.Name) -ErrorAction Stop
+    }catch{
+        throw
+    }
+}
+
+############################
+#function for buttons 
+############################
+ 
+    $var_form1_btnStop.Add_Click({
+         Get-Service  dns* |  Stop-Service -Force
+    })
+
+       
+    $var_form1_btnStart.Add_Click({
+         gsv -ComputerName $targetcomputer -Name $stop | Stop-Service -Force
+    })
+          
+   
+    $var_form1_btnRestart.Add_Click({
+       Get-Service -ComputerName $targetcomputer -Name $restart | Restart-Service
+    })
+       
+        $var_form1_btnSkoda.Add_Click({
+    $user = "IBCMSK\rpesout"
+    $password = Get-Content "C:\test\password.txt" | ConvertTo-SecureString -AsPlainText -Force
+    $mycreds = New-Object System.Management.Automation.PSCredential ($user, $password)
+    $targetcomputer="TSTZZS02"
+    $session = new-pssession -computername $targetcomputer -credential $mycreds
+    $a = invoke-command -session $session -scriptblock { ((get-content "C:\IZS\M5ZzsBridgeZD\m5zzsbridgezd.exe") -replace "https://services.zzsmsk.cz/DocSrvTst/DispDataPort/DispDataPort.asmx","https://services.zzsmsk.cz/DocSrvTst/DispDataPort/DispDataPortaaa.asmx" | Set-Content -Path "C:\IZS\M5ZzsBridgeZD\m5zzsbridgezd.exe") }
+    })
+
+        $var_form1_btnOprava.Add_Click({
+ $user = "IBCMSK\rpesout"
+    $password = Get-Content "C:\test\password.txt" | ConvertTo-SecureString -AsPlainText -Force
+    $mycreds = New-Object System.Management.Automation.PSCredential ($user, $password)
+    $targetcomputer="TSTZZS02"
+    $session = new-pssession -computername $targetcomputer -credential $mycreds
+    $a = invoke-command -session $session -scriptblock { ((get-content "C:\IZS\M5ZzsBridgeZD\m5zzsbridgezd.exe") -replace "https://services.zzsmsk.cz/DocSrvTst/DispDataPort/DispDataPortaaa.asmx","https://services.zzsmsk.cz/DocSrvTst/DispDataPort/DispDataPort.asmx" | Set-Content -Path "C:\IZS\M5ZzsBridgeZD\m5zzsbridgezd.exe") } 
+    })
+
+###########################################
+#Definitions for Services grid 
+###########################################
+
+$Columns=@(
+    'Status'
+    'DisplayName'
+    'ServiceName'
+)
+
+$Services=Get-Service "d*" | Select-Object $Columns
+
+$ServiceDataTable=New-Object System.Data.DataTable
+[void]$ServiceDataTable.Columns.AddRange($Columns)
+
+foreach($Service in $Services){
+    $Entry=@()
+    foreach($Column in $Columns){
+        $Entry+=$Service.$Column
+    }
+    [void]$ServiceDataTable.Rows.Add($Entry)
+}
+
+$var_dg_services.ItemsSource=$ServiceDataTable.DefaultView
+$var_dg_services.IsReadOnly=$true
+#$var_dg_services.GridLinesVisibility="None"
+
+
+$form1.ShowDialog()
