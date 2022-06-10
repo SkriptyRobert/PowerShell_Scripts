@@ -1,0 +1,86 @@
+do {
+ 
+############VARIABLES DECLARATION##############
+   
+    $targetcomputer="Computer_Name"
+    $user = "USERNaME_OR_DomainUser"
+    $password = Get-Content "C:\Secret\Password.txt | ConvertTo-SecureString -AsPlainText -Force 
+    $mycreds = New-Object System.Management.Automation.PSCredential ($user, $password) #####AUTO FILl credentials
+
+########################################################################################
+#SERVICE STATEMANT ON REMOTE PC 
+########################################################################################
+
+write-host "##########################"
+Write-Host ">>>AKTUALNI STAV SLUZEB<<<"
+write-host "##########################"
+
+gsv -ComputerName $targetcomputer M5Zzs* | Select Name,Status | ForEach-Object {  
+if($_.Status -eq "running")
+{
+Write-Host Sluzba $_.Name $_.Status -ForegroundColor Black -BackgroundColor Green
+}
+else
+{
+Write-Host Sluzba $_.Name $_.status -ForegroundColor Black -BackgroundColor Red
+} 
+}
+
+write-host "#######################"
+
+############QUESTION, WHAT TO DO NEXT##############
+
+write-host "================================================================================================================================="
+$value=Read-Host "Zadej VOLBU - ZASTAVIT sluzbu= -1-, SPUSTIT sluzbu= -2-, RESTARTOVAT sluzbu= -3-, Poskodit= -4-, Opravit= -5-, Konec= -0-"  
+write-host "================================================================================================================================="
+
+if ( $value -eq 1 )
+{
+    $stop= "M5ZzsBridgeZd"
+    gsv -ComputerName $targetcomputer -Name $stop | Stop-Service -Force -Verbose
+    gsv -ComputerName $targetcomputer -name $stop ## SERVICE STOPCHECK
+}
+elseif ( $value -eq 2 )
+{
+    $start= "M5ZzsBridgeZd"
+    Get-Service -ComputerName $targetcomputer -Name $start | Start-Service -Verbose
+    gsv -ComputerName $targetcomputer -name $start ## SERVICE STARTUPCHECK  
+}
+elseif ( $value -eq 3 )
+{
+    $restart= "M5ZzsBridgeZd"
+    Get-Service -ComputerName $targetcomputer -Name $restart | Restart-Service -Verbose 
+    gsv -ComputerName $targetcomputer -name $restart 
+}
+  
+   #################CONNECT TO REMOTE DISK AND OWERWRITE STRING IN FILE################
+
+elseif ( $value -eq 4 )
+{
+ 
+    $Session = New-PSSession -ComputerName "Server01" -Credential $mycreds 
+    Copy-Item -Path "C:\Data\ZD.exe.Config_Error" -PassThru -Destination "C:\Users\ZD.exe.Config" -Force    
+    $restart= "Services"
+    Get-Service -ComputerName $targetcomputer -Name $restart | Restart-Service -Verbose -Force
+    gsv -ComputerName $targetcomputer -name $restart 
+    
+    #################REPAIR STRING BACK###################
+}
+elseif ( $value -eq 5 )
+{
+    $Session = New-PSSession -ComputerName "Server01" -Credential $mycreds  ### kopirovani na dalku 
+    Copy-Item -Path "C:\Data\ZD.exe.Config" -PassThru -Destination "C:\Users\ZD.exe.Config" -force
+    Get-Service -ComputerName $targetcomputer -Name $restart | Restart-Service -Verbose -Force 
+    gsv -ComputerName $targetcomputer -name $restart 
+}
+} until ( $value -eq 0 )
+
+#############Nakonec prepsat i puvodni hodnoty, aby se nestalo, ze zustane prerusen kontakt s databazi. Treba i tak ze na konci nahraje kopie zaloha configu a prejmenuje se.#######
+   
+    #$Session = New-PSSession -ComputerName "Server01" -Credential $mycreds ### kopirovani na dalku 
+    Copy-Item -Path "C:\Data\ZD.exe.Config" -PassThru -Destination "C:\Users\BIN\ZD.exe.Config" -force
+    $restart= "Service"
+    Get-Service -ComputerName $targetcomputer -Name $restart | Restart-Service -Verbose -Force 
+    gsv -ComputerName $targetcomputer -name $restart 
+
+Write-host "Program ukoncen, stav byl navracen do puvodnich hodnot!" -ForegroundColor Black -BackgroundColor Yellow
